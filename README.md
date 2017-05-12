@@ -48,5 +48,5 @@ input options, output options, class support, and basic examples.
 
 # Contributors
 Alexander Reynolds  
-  [ar@reynoldsalexander.com}(mailto:ar@reynoldsalexander.com)  
+  [ar@reynoldsalexander.com](mailto:ar@reynoldsalexander.com)  
   [https://github.com/alkasm](https://github.com/alkasm)
