@@ -110,8 +110,6 @@ init_radius = radius;
 % first frame
 frame = imgseq{1};
 [X(1),Y(1),D(1)] = match_template(frame, template, 'mask', mask);
-A{1,1} = 1:frame_sz(1);
-A{2,1} = 1:frame_sz(2);
 
 % the rest of the sequence
 if radius < 0 % sequence using the whole frame
