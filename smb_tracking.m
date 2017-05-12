@@ -1,6 +1,8 @@
 % SMB_TRACKING  Track Mario in SMB gameplay via template matching.
 %
-%   Requires TRACK_TEMPLATE.m, MATCH_TEMPLATE.m
+%   Requires TRACK_TEMPLATE.m, MATCH_TEMPLATE.m, and the Computer Vision
+%   System Toolbox for nice input and output and to draw the tracked box 
+%   around Mario.
 %
 %   Author
 %   ------ 
@@ -11,17 +13,15 @@
 %% read input
 
 fprintf('Reading video file...');
-
-% create a VideoReader object to read data from video
-vr = VideoReader('input/smb_w4-1.mp4');
+vr = vision.VideoFileReader('input/smb_w4-1.mp4');
 
 % read video frames into cell array
 k = 1;
-while hasFrame(vr)
-    smb_video{k} = readFrame(vr);
+while ~isDone(vr)
+    smb_video{k} = step(vr);
     k = k+1;
 end
-
+release(vr)
 qty_frames = length(smb_video);
 
 fprintf('done. \n');
@@ -54,30 +54,31 @@ thresh = thresh * 3;
 
 radius = 10;
 rate = 1.05;
-fprintf('Running template tracking algorithm (might take a few minutes)...');
+fprintf('Running template tracking algorithm (might take a minute)...');
 [X,Y] = track_template(smb_video,head, ...
     'radius',radius,'mask',mask,'threshold',thresh,'rate',rate);
 fprintf('done. \n');
 
-%% write video with box around Mario and transparent search area
+%% write video with box around Mario
 
 fprintf('Writing video file...');
-v = VideoWriter('tracked.mp4','MPEG-4');
-v.FrameRate = vr.FrameRate;
-open(v)
+vw = vision.VideoFileWriter('tracked.mp4',...
+    'FileFormat','MPEG4','FrameRate',vr.info.VideoFrameRate);
 
 for k = 1:qty_frames
     
     if ~isnan(X(k)*Y(k)) % if the match is accepted, draw box around Mario
         box_pos = [X(k)-4 Y(k)-2 head_size(2)+5 head_size(1)+22];
         curr_frame = insertShape(smb_video{k},...
-            'rectangle',box_pos,'LineWidth',2,'Color','Y');
+            'Rectangle',box_pos,'LineWidth',2,'Color','Y');
     else % don't draw a box around Mario
         curr_frame = smb_video{k};
     end
-    writeVideo(v,curr_frame);
+    
+    step(vw,curr_frame)
     
 end
-close(v);
+
+release(vw);
 
 fprintf('done. \nOperation complete!\n');
