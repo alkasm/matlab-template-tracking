@@ -1,9 +1,9 @@
 # File List
-README                  This file  
-smb_tracking.m          Example MATLAB script  
-match_template.m        MATLAB function  
-track_template.m        MATLAB function  
-input/smb_gameplay.mp4  Example video input  
+README - This file  
+smb_tracking.m - Example MATLAB script  
+match_template.m - MATLAB function  
+track_template.m - MATLAB function  
+input/smb_w4-1.mp4 - Example video input  
  
 # Project Description
 These scripts and functions were built on MATLAB R2017a. The script 
