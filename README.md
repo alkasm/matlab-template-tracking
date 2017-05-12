@@ -8,7 +8,7 @@ input/smb_w4-1.mp4 - Example video input
  
 # Project Description
 
-These scripts and functions were built on MATLAB R2017a. The script uses the computer vision toolbox to input and output video and draw a box around Mario, but this can be removed if a license to the toolbox is not possessed and can be read, output, and drawn using the standard Matlab library. The project idea came from a reddit thread, which can be found here: [https://reddit.com/r/computervision/comments/69p1bj/](https://reddit.com/r/computervision/comments/69p1bj/)
+These scripts and functions were built on MATLAB R2017a. The script uses the computer vision toolbox to input and output video and draw a box around Mario, but this can be removed if a license to the toolbox is not possessed and can be read, output, and drawn using the standard Matlab library. The project idea came from a reddit thread in the [r/computervision](https://reddit.com/r/computervision/) subreddit. You can see my subsequent text-post here: [r/computervision/comments/6aqmbo/template_tracking_super_mario/](https://reddit.com/r/computervision/comments/6aqmbo/template_tracking_super_mario/)
 
 # Example Outputs
 
