@@ -8,14 +8,14 @@ input/smb_w4-1.mp4 - Example video input
  
 # Project Description
 
-These scripts and functions were built on MATLAB R2017a. The script requires the computer vision toolbox only to draw a box around Mario, but this can be removed if a license to the toolbox is not possessed. The project idea came from a reddit thread, which can be found here: [https://reddit.com/r/computervision/comments/69p1bj/](https://reddit.com/r/computervision/comments/69p1bj/)
+These scripts and functions were built on MATLAB R2017a. The script uses the computer vision toolbox to input and output video and draw a box around Mario, but this can be removed if a license to the toolbox is not possessed and can be read, output, and drawn using the standard Matlab library. The project idea came from a reddit thread, which can be found here: [https://reddit.com/r/computervision/comments/69p1bj/](https://reddit.com/r/computervision/comments/69p1bj/)
 
 # Example Outputs
 
-[https://youtube...](https://youtube.com/...)  
+[https://youtu.be/zo3U3a4nmyY](https://youtu.be/zo3U3a4nmyY)  
 This video shows the output from running `smb_tracking`.  
 
-[https://youtube...](https://youtube.com/...)  
+[https://youtu.be/m99H6oH46E8](https://youtu.be/m99H6oH46E8)  
 This video shows how setting a `thresh` and `radius` will dynamically adjust the search area for a `template` by expanding `radius` when no good matches (that is, the scaled SSD is above `thresh`) are found  in the previous search area. The code to generate this video is not included but `track_template` can be easily edited to output the search area of each frame. The included example does, however, use this method.
 
 # Description of .m files
