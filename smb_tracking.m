@@ -10,6 +10,8 @@
 %   ar@reynoldsalexander.com
 %   https://github.com/alkasm
 
+clear all;
+
 %% read input
 
 fprintf('Reading video file...');
@@ -26,34 +28,25 @@ qty_frames = length(smb_video);
 
 fprintf('done. \n');
 
-%% create template
+%% read template
 
-% Mario's head for template matching
-head_frame = 150;
-head_pix_y = 179:189;
-head_pix_x = 115:127;
-head_size = [length(head_pix_y) length(head_pix_x)];
-head = smb_video{head_frame}(head_pix_y, head_pix_x, :);
+% load Mario's head, and a mask to remove the background, for the template
+template = matfile('input/template.mat');
+head = template.head;
+head_size = [size(head,1) size(head,2)];
+mask = template.mask;
 
-% hard code mask to remove the blue background from the head
-mask = ones(head_size);
-mask(1,[1:4 end-3:end]) = 0;
-mask(2,[1 2 end-3:end]) = 0;
-mask([3 4],[1 end]) = 0;
-mask([5 6 9 10],end) = 0;
-mask(end,[1 2 end-3:end]) = 0;
-mask = mask==1; % convert to logical
-             
+% values for template tracking algorithm
+radius = 10;
+rate = 1.05; 
+
 % create threshold based on how well the head matches on the first frame
 [~,~,thresh] = match_template(smb_video{1}, head, 'mask', mask);
+thresh = thresh * 3; % make it more forgiving
 
-% make it more forgiving
-thresh = thresh * 3; 
 
 %% run template tracking algorithm
 
-radius = 10;
-rate = 1.05;
 fprintf('Running template tracking algorithm (might take a minute)...');
 [X,Y] = track_template(smb_video,head, ...
     'radius',radius,'mask',mask,'threshold',thresh,'rate',rate);
