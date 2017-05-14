@@ -5,6 +5,7 @@ smb_tracking.m - Example MATLAB script
 match_template.m - MATLAB function  
 track_template.m - MATLAB function  
 input/smb_w4-1.mp4 - Example video input  
+input/template.mat - Data file containing the template and mask for smb_tracking.m
  
 # Project Description
 
