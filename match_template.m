@@ -94,6 +94,17 @@ for ii = 1:algo_sz(1)
     end
 end   
 
+%% scale SSD to between 0 and 1
+
+% find maximum possible difference between the template and any image
+max_vals = max([template(mask)'; 1-template(mask)']);
+
+% sum the max square differences
+max_ssd = sum(max_vals.^2);
+
+% scale to values between 0 and 1
+diff = diff/max_ssd;
+
 %% find match location(s)
 
 if thresh < 0 % return minimum location and associated scaled SSD
