@@ -8,11 +8,11 @@ function [ X, Y, D ] = match_template( image, template, varargin )
 %   
 %   [X,Y,D] = MATCH_TEMPLATE(IMAGE,TEMPLATE,...) also returns a vector D 
 %   containing scaled SSD values corresponding to the match locations X,Y.
+%   The SSD is scaled by the max possible SSD of TEMPLATE with any IMAGE.
 % 
-%   [X,Y] = MATCH_TEMPLATE(...,'THRESHOLD',THRESH) the SSD is scaled by 
-%   the maximum possible SSD of TEMPLATE with any IMAGE. Matches are 
-%   returned if there are any locations where SSD is less than THRESH.
-%   X and Y hold the (x,y)-coordinates of all matches.
+%   [X,Y] = MATCH_TEMPLATE(...,'THRESHOLD',THRESH) matches are returned for
+%   locations where the scaled SSD<=THRESH. Set THRESH=0 to locate exact 
+%   matches. X and Y hold the (x,y)-coordinates of matches.
 % 
 %   [X,Y] = MATCH_TEMPLATE(...,'MASK',MASK) for a non-rectangular TEMPLATE, 
 %   send a logical MASK the same size as TEMPLATE indicating which pixels 
@@ -24,8 +24,6 @@ function [ X, Y, D ] = match_template( image, template, varargin )
 %       uint8, uint16, double, logical, single, or int16.
 %   If IMAGE or TEMPLATE is an indexed image, it can be 
 %       uint8, uint16, double or logical.
-%   If IMAGE or TEMPLATE is a binary image, it must be 
-%       logical.
 % 
 %   Example
 %   -------
@@ -96,17 +94,6 @@ for ii = 1:algo_sz(1)
     end
 end   
 
-%% scale SSD to between 0 and 1
-
-% find maximum possible difference between the template and any image
-[~,max_ind] = max([template(:)'; 1-template(:)']);
-
-% sum the max square differences
-max_ssd = sum([template(max_ind==1) 1-template(max_ind==2)].^2);
-
-% scale to values between 0 and 1
-diff = diff/max_ssd;
-
 %% find match location(s)
 
 if thresh < 0 % return minimum location and associated scaled SSD
@@ -115,9 +102,11 @@ if thresh < 0 % return minimum location and associated scaled SSD
     [Y,X] = ind2sub(algo_sz, min_ind);
     D = diff(Y,X);
     
-else % return all locations with diff<thresh and associated scaled SSDs 
+else % return all locations with diff<=thresh and associated scaled SSDs 
     
-    [Y,X,D] = find(diff .* (diff <= thresh)); 
+    thresh_ind = find(diff(:) <= thresh);
+    [Y,X] = ind2sub(algo_sz, thresh_ind);
+    D = diff(thresh_ind);
     
 end
 
