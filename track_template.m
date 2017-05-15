@@ -10,27 +10,31 @@ function [ X, Y, D ] = track_template( imgseq, template, varargin )
 %   containing scaled SSD values corresponding to the match locations X,Y.
 %
 %   [X,Y] = TRACK_TEMPLATE(...,'RADIUS',RADIUS) to reduce the search area, 
-%   TEMPLATE is found in IMGSEQ{N} by searching in a square RADIUS from the 
-%   match in IMGSEQ{N-1}. IMGSEQ{1} is found by searching the full image.
-%   Use when the max distance TEMPLATE can travel between images is known.
+%   TEMPLATE is found in IMGSEQ{N} by searching in a RADIUS from the match
+%   in IMGSEQ{N-1}. RADIUS can be a scalar or a 4-vector specifying the 
+%   radius in each direction, in the order: left, top, right, bottom. 
+%   IMGSEQ{1} is found by searching the full image. 
 % 
 %   [X,Y] = TRACK_TEMPLATE(...,'THRESHOLD',THRESH) matches are returned if
 %   they are below THRESH, otherwise [NaN,NaN] is returned as the match
 %   location for the frame. If a RADIUS is specified, RADIUS grows around
-%   the most recent correct match each frame until the template reappears.
+%   the most recent match by RATE each frame until TEMPLATE is found again.
 %
 %   [X,Y] = TRACK_TEMPLATE(...,'RATE',RATE) if THRESH and RADIUS are both 
 %   supplied, the search area defined through RADIUS grows by RATE when 
-%   matches are below THRESH. By default, RATE = 1.1.
+%   matches are above THRESH. RATE can be a scalar or a 4-vector specifying
+%   the growth rate for each direction independently, in the order: left, 
+%   top, right, bottom. By default, RATE = 1.1.
 % 
 %   [X,Y] = TRACK_TEMPLATE(...,'MASK',MASK) for a non-rectangular TEMPLATE, 
-%   send a logical MASK the same size as TEMPLATE indicating which pixels 
-%   to include in TEMPLATE (1: include, 0: exclude).
+%   send a logical MASK indicating which pixels to include in TEMPLATE
+%   (1: include, 0: exclude). MASK must have same height/width as TEMPLATE: 
+%   size(MASK)==size(TEMPLATE) or size(MASK)==size(TEMPLATE(1:2)). 
 % 
 %   Class Support
 %   -------------
 %   IMGSEQ containing N images must be a 1xN cell array with an image in
-%   each cell. See MATCH_TEMPLATE documentation for image class support.
+%   each cell. Run `help match_template` for image class support.
 % 
 %   Example
 %   -------
@@ -70,16 +74,16 @@ function [ X, Y, D ] = track_template( imgseq, template, varargin )
 % create parser
 p = inputParser;
 img_classes = {'uint8','uint16','double','logical','single','int16'};
-check_img = @(I) validateattributes(I,img_classes,{'nonempty'});
-check_seq = @(S) isnumeric(S{1}) && isHomogeneous(coder.typeof(S));
+is_img = @(I) validateattributes(I,img_classes,{'nonempty'});
+is_seq = @(S) assert(isnumeric(S{1}) && isHomogeneous(coder.typeof(S)));
 default_radius = -1;
 default_thresh = -1;
 default_rate = 1.1;
 default_mask = 1;
 
 % add arguments to parser
-addRequired(p,'imgseq',check_seq);
-addRequired(p,'template',check_img);
+addRequired(p,'imgseq',is_seq);
+addRequired(p,'template',is_img);
 addParameter(p,'radius',default_radius,@isnumeric);
 addParameter(p,'threshold',default_thresh,@isnumeric);
 addParameter(p,'rate',default_rate,@isnumeric);
@@ -96,62 +100,69 @@ mask = p.Results.mask;
 
 %% initialize
 
+if isscalar(radius)
+    radius = repmat(radius, [4 1]);
+end
+if isscalar(rate)
+    rate = repmat(rate, [4 1]);
+end
+init_radius = radius;
+
 qty_frames = length(imgseq);
-frame_sz = [size(imgseq{1},1) size(imgseq{1},2)];
-template_sz = [size(template,1) size(template,1)];
+frame_h = size(imgseq{1},1);
+frame_w = size(imgseq{1},2);
+template_h = size(template,1);
+template_w = size(template,2);
 
 X = ones(qty_frames,1); % x locations of matches
 Y = X;                  % y locations of matches
 D = X;                  % scaled SSD at match locations
-init_radius = radius;
 
 %% find template
 
 % first frame
-frame = imgseq{1};
-[X(1),Y(1),D(1)] = match_template(frame, template, 'mask', mask);
+[X(1),Y(1),D(1)] = match_template(imgseq{1},template,'mask',mask);
 
 % the rest of the sequence
 if radius < 0 % sequence using the whole frame
     
     for k = 2:qty_frames
         
-        frame = imgseq{k};
-        [X(k),Y(k),D(k)] = match_template(frame, template, 'mask', mask);
+        [X(k),Y(k),D(k)] = match_template(imgseq{k},template,'mask',mask);
 
     end
     
-elseif radius >= 0 && thresh < 0 % sequence, radius around X(k-1),Y(k-1), w/o thresh
+elseif thresh < 0 % radius around X(k-1),Y(k-1), w/o thresh
     
     for k = 2:qty_frames
 
-        t = max(Y(k-1)-radius, 1);
-        b = min(Y(k-1)+template_sz(1)+radius, frame_sz(1));
-        l = max(X(k-1)-radius, 1);
-        r = min(X(k-1)+template_sz(2)+radius, frame_sz(2));
+        l = max(X(k-1) - radius(1), 1);
+        t = max(Y(k-1) - radius(2), 1);
+        r = min(X(k-1) + radius(3) + template_w, frame_w);
+        b = min(Y(k-1) + radius(4) + template_h, frame_h);
 
-        frame = imgseq{k}(t:b, l:r, :);
-        [X(k),Y(k),D(k)] = match_template(frame, template, 'mask', mask);
+        roi = imgseq{k}(t:b,l:r,:);
+        [X(k),Y(k),D(k)] = match_template(roi,template,'mask',mask);
         
         X(k) = X(k) + l;
         Y(k) = Y(k) + t;
         
     end
     
-elseif radius >= 0 && thresh >= 0 % sequence, radius around X(k-1),Y(k-1) w/ thresh
+else % sequence, radius around X(k-1),Y(k-1) w/ thresh
     
     for k = 2:qty_frames
 
-        t = max(Y(k-1)-radius, 1);
-        b = min(Y(k-1)+template_sz(1)+radius, frame_sz(1));
-        l = max(X(k-1)-radius, 1);
-        r = min(X(k-1)+template_sz(2)+radius, frame_sz(2));
-
-        frame = imgseq{k}(t:b, l:r, :);
-        [X(k),Y(k),D(k)] = match_template(frame, template, 'mask', mask);
+        l = max(X(k-1) - radius(1), 1);
+        t = max(Y(k-1) - radius(2), 1);
+        r = min(X(k-1) + radius(3) + template_w, frame_w);
+        b = min(Y(k-1) + radius(4) + template_h, frame_h);
+        
+        roi = imgseq{k}(t:b,l:r,:);
+        [X(k),Y(k),D(k)] = match_template(roi,template,'mask',mask);
 
         if D(k)>thresh % grow radius, keep the last known match loc
-            radius = round(radius*rate);
+            radius = round(radius.*rate);
             X(k) = X(k-1);
             Y(k) = Y(k-1);
         else

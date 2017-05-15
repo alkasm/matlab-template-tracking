@@ -10,7 +10,8 @@
 %   ar@reynoldsalexander.com
 %   https://github.com/alkasm
 
-clear all;
+clearvars X Y box_pos curr_frame head head_size k mask qty_frames radius 
+clearvars rate smb_video template thresh vr vw
 
 %% read input
 
@@ -38,18 +39,20 @@ mask = template.mask;
 
 % values for template tracking algorithm
 radius = 10;
-rate = 1.05; 
+rate = 1.05;
 
 % create threshold based on how well the head matches on the first frame
-[~,~,thresh] = match_template(smb_video{1}, head, 'mask', mask);
+[~,~,thresh] = match_template_new(smb_video{1},head,'mask',mask);
 thresh = thresh * 3; % make it more forgiving
 
 
 %% run template tracking algorithm
 
 fprintf('Running template tracking algorithm (might take a minute)...');
+tic
 [X,Y] = track_template(smb_video,head, ...
     'radius',radius,'mask',mask,'threshold',thresh,'rate',rate);
+toc
 fprintf('done. \n');
 
 %% write video with box around Mario

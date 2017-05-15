@@ -15,8 +15,9 @@ function [ X, Y, D ] = match_template( image, template, varargin )
 %   matches. X and Y hold the (x,y)-coordinates of matches.
 % 
 %   [X,Y] = MATCH_TEMPLATE(...,'MASK',MASK) for a non-rectangular TEMPLATE, 
-%   send a logical MASK the same size as TEMPLATE indicating which pixels 
-%   to include in TEMPLATE (1: include, 0: exclude).
+%   send a logical MASK to indicate which pixels to include in TEMPLATE
+%   (where 1: include, 0: exclude). MASK must have same height/width as
+%   TEMPLATE: size(MASK)==size(TEMPLATE) or size(MASK)==size(TEMPLATE(1:2)) 
 % 
 %   Class Support
 %   -------------
@@ -52,15 +53,20 @@ function [ X, Y, D ] = match_template( image, template, varargin )
 
 % create parser
 p = inputParser;
+
+% validation functions
 img_classes = {'uint8','uint16','double','logical','single','int16'};
-check_img = @(I) validateattributes(I,img_classes,{'nonempty'});
+is_img = @(x) validateattributes(x,img_classes,{'nonempty'});
+is_thresh = @(x) assert(isnumeric(x) && isscalar(x) && (x>=0) && (x<1), ...
+    'Threshold must be numeric, scalar, and in [0, 1).');
+
 defaultThresh = -1;
 defaultMask = 1;
 
 % add arguments to parser
-addRequired(p,'image',check_img);
-addRequired(p,'template',check_img);
-addParameter(p,'threshold',defaultThresh,@isnumeric);
+addRequired(p,'image',is_img);
+addRequired(p,'template',is_img);
+addParameter(p,'threshold',defaultThresh,is_thresh);
 addParameter(p,'mask',defaultMask,@islogical);
 
 % parse inputs
@@ -70,34 +76,61 @@ template = im2double(p.Results.template);
 thresh = p.Results.threshold;
 mask = p.Results.mask;
 
-%% initialize
+% get sizes
+image_h = size(image,1);
+image_w = size(image,2);
+template_h = size(template,1);
+template_w = size(template,2);
 
-% compute size of the scanning window
-image_sz = size(image);
-template_sz = size(template);
-algo_sz = image_sz(1:2) - template_sz(1:2) + [1 1];
-
-% initialize the difference image
-diff = zeros(algo_sz);
-
-% if 1-ch mask is given and the image is 3-ch, convert mask to 3-ch
-if (length(mask)>1 && length(size(mask))==2 && length(image_sz)==3) 
-    mask = repmat(mask, [1 1 3]);
+% check if mask exists and is the right size
+err_mask = ['MASK must have the same height and width as TEMPLATE: '...
+        'size(MASK)==size(TEMPLATE) or size(MASK)==size(TEMPLATE(1:2)).'];
+if all(mask(:)) % no mask, or equivalently, all true mask
+    mask_exists = false;
+elseif size(mask,1) == template_h && size(mask,2) == template_w
+    if size(mask,3) == 1 && size(template,3) == 3
+        mask_exists = true;
+        mask = repmat(mask,[1 1 3]);
+    elseif size(mask,3) == size(template,3)
+        mask_exists = true;
+    else
+        error(err_mask);
+    end
+else
+    error(err_mask);
 end
+
 
 %% compute sum of square differences
 
-for ii = 1:algo_sz(1)
-    for jj = 1:algo_sz(2)
-        diff(ii,jj) = sum(sum(sum(...
-            mask .* (template - image(ii:template_sz(1)+ii-1, jj:template_sz(2)+jj-1, :)).^2)));
-    end
-end   
+% initialize the difference image
+nrows = image_h - template_h + 1;
+ncols = image_w - template_w + 1;
+diff = zeros([nrows ncols]);
+
+% loop through each pixel
+if mask_exists
+    template = template(mask); % linearize and remove values
+    for r = 1:nrows
+        for c = 1:ncols
+            roi = image(r:template_h+r-1,c:template_w+c-1,:);
+            diff(r,c) = sum((template - roi(mask)).^2);
+        end
+    end   
+else
+    template = template(:); % linearize
+    for r = 1:nrows
+        for c = 1:ncols
+            roi = image(r:template_h+r-1,c:template_w+c-1,:);
+            diff(r,c) = sum((template - roi(:)).^2);
+        end
+    end   
+end
 
 %% scale SSD to between 0 and 1
 
 % find maximum possible difference between the template and any image
-max_vals = max([template(mask)'; 1-template(mask)']);
+max_vals = max([template'; 1-template']);
 
 % sum the max square differences
 max_ssd = sum(max_vals.^2);
@@ -110,13 +143,13 @@ diff = diff/max_ssd;
 if thresh < 0 % return minimum location and associated scaled SSD
     
     [~,min_ind] = min(diff(:));
-    [Y,X] = ind2sub(algo_sz, min_ind);
+    [Y,X] = ind2sub([nrows ncols], min_ind);
     D = diff(Y,X);
     
 else % return all locations with diff<=thresh and associated scaled SSDs 
     
     thresh_ind = find(diff(:) <= thresh);
-    [Y,X] = ind2sub(algo_sz, thresh_ind);
+    [Y,X] = ind2sub([nrows ncols], thresh_ind);
     D = diff(thresh_ind);
     
 end
